@@ -89,9 +89,10 @@ endif
 let s:newtabid = -1
 let s:testprog = v:null
 let s:progtimer = v:null
-let s:laststdin = ""
-let s:laststdout = ""
-let s:laststdout = ""
+let s:laststdin = ["noredir"]
+let s:laststdout = ["noredir"]
+let s:laststdout = ["noredir"]
+let s:lastexename = ""
 " }}} End init execute arguments
 
 " {{{ Function VimOI#OIRedirect
@@ -111,6 +112,7 @@ endfunction
 " }}} End function s:KillProg
 
 function! VimOI#OIRedirect(...)
+    " {{{ Compile and get the executable name
     if g:VimOI_AutoCompile == 1
         if a:0 >= 1
             execute "CppCompile " . a:1
@@ -119,27 +121,32 @@ function! VimOI#OIRedirect(...)
         endif
     endif
 
-    " {{{ Get the executable name
+    " Get the executable name
     if a:0 == 0 || empty(a:1) || a:1[0] == ' ' || a:1 == '%'
-        if g:VimOI_CompileSys == 'mscl'
+        if !empty(s:lastexename)
+            let exename = s:lastexename
+        elseif g:VimOI_CompileSys == 'mscl'
             let exename = expand('%:r') . '.exe'
         else
             let exename = './a.out'
         endif
+    elseif a:1 == '-'
+        let exename = s:lastexename
     else
         let exename = a:1
     endif
+    let s:lastexename = exename
     " }}} Done get the executable name
 
     " {{{ Function s:ProcRedirOpt
     " Returns a list [RedirType, RedirPos]
     function! s:ProcRedirOpt(opt, type)
-        " Dont need to redirect
-        if empty(a:opt) || a:opt == '-'
+        " Use last result
+        if empty(a:opt) || a:opt == '!'
+            execute "return s:laststd" . a:type
+            " Dont need to redirect
+        elseif a:opt == '-'
             let result = ["noredir"]
-            " Use last result
-        elseif a:opt == '!'
-            execute "return s:ProcRedirOpt(s:laststd" . a:type . ", a:type)"
             " A redirect variable
         elseif a:opt[0] == '$'
             if a:opt[1:3] == "buf"
@@ -239,43 +246,52 @@ function! VimOI#OIRedirect(...)
 
     " {{{ Get redirect destinations
     " Stdin
-    if a:0 >= 2
-        let opt = s:ProcRedirOpt(a:2, "in")
-        if opt[0] == "buf"
-            let joboption.in_io = "buffer"
-            let joboption.in_buf = s:GetRedirBuf(opt[1], "in")
-        elseif opt[0] == "null"
-            let joboption.in_io = "null"
-        elseif opt[0] == "file"
-            let joboption.in_io = "file"
-            let joboption.in_name = opt[1]
-        endif
+    if a:0 < 2
+        let arg = "!"
+    else
+        let arg = a:2
+    endif
+    let opt = s:ProcRedirOpt(arg, "in")
+    if opt[0] == "buf"
+        let joboption.in_io = "buffer"
+        let joboption.in_buf = s:GetRedirBuf(opt[1], "in")
+    elseif opt[0] == "null"
+        let joboption.in_io = "null"
+    elseif opt[0] == "file"
+        let joboption.in_io = "file"
+        let joboption.in_name = opt[1]
     endif
     " Stdout
-    if a:0 >= 3
-        let opt = s:ProcRedirOpt(a:3, "out")
-        if opt[0] == "buf"
-            let joboptioin.out_io = "buffer"
-            let joboption.out_buf = s:GetRedirBuf(opt[1], "out")
-        elseif opt[0] == "null"
-            let joboption.out_io = "null"
-        elseif opt[0] == "file"
-            let joboption.out_io = "file"
-            let joboption.out_name = opt[1]
-        endif
+    if a:0 < 3
+        let arg = "!"
+    else
+        let arg = a:3
+    endif
+    let opt = s:ProcRedirOpt(arg, "out")
+    if opt[0] == "buf"
+        let joboptioin.out_io = "buffer"
+        let joboption.out_buf = s:GetRedirBuf(opt[1], "out")
+    elseif opt[0] == "null"
+        let joboption.out_io = "null"
+    elseif opt[0] == "file"
+        let joboption.out_io = "file"
+        let joboption.out_name = opt[1]
     endif
     " Stderr
     if a:0 >= 4
-        let opt = s:ProcRedirOpt(a:4, "err")
-        if opt[0] == "buf"
-            let joboptioin.err_io = "buffer"
-            let joboption.err_buf = s:GetRedirBuf(opt[1], "err")
-        elseif opt[0] == "null"
-            let joboption.err_io = "null"
-        elseif opt[0] == "file"
-            let joboption.err_io = "file"
-            let joboption.err_name = opt[1]
-        endif
+        let arg = "!"
+    else
+        let arg = a:4
+    endif
+    let opt = s:ProcRedirOpt(arg, "err")
+    if opt[0] == "buf"
+        let joboptioin.err_io = "buffer"
+        let joboption.err_buf = s:GetRedirBuf(opt[1], "err")
+    elseif opt[0] == "null"
+        let joboption.err_io = "null"
+    elseif opt[0] == "file"
+        let joboption.err_io = "file"
+        let joboption.err_name = opt[1]
     endif
     " }}} Done get the redirect distinations
 
