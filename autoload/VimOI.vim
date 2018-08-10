@@ -165,7 +165,7 @@ function! VimOI#OIRedirect(...)
             let result = ["file", a:opt]
         endif
         " Save result
-        execute "let laststd" . a:type . "= result"
+        execute "let s:laststd" . a:type . "= result"
         return result
     endfunction
     " }}} End function s:ProcRedirOpt

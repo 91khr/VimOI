@@ -8,8 +8,8 @@
     1. [CppCompile命令](#cppcompile命令)
     1. [OIRedirect命令](#oiredirect命令)
 1. [Functions](#functions)
-    1. [VimOI#CppCompile函数](#vimoi#cppcompile函数)
-    1. [VimOI#OIRedirect函数](#vimOI#oiredirect函数)
+    1. [VimOI#CppCompile函数](#vimoicppcompile函数)
+    1. [VimOI#OIRedirect函数](#vimoioiredirect函数)
 1. [Options](#options)
     1. [g:VimOI_CompileSys](#gvimoi_compilesys)
     1. [g:VimOI_CompileProg](#gvimoi_compileprog)
@@ -227,6 +227,6 @@ call VimOI#CppCompile(['%', '-Wall', '-Wextra'])
 
 ## TODO
 
-- 实现[VimOI#OIRedirect函数](#vimoi#oiredirect函数)的`$echo`特殊重定向;
+- 实现[VimOI#OIRedirect函数](#vimoioiredirect函数)的`$echo`特殊重定向;
 - 优化代码风格;
 
