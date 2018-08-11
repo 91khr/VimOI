@@ -1,5 +1,7 @@
 if !exists("g:VimOI_loaded")
     let g:VimOI_loaded = 1
+else
+    finish
 endif
 
 " {{{ Init compile arguments
@@ -91,7 +93,7 @@ let s:testprog = v:null
 let s:progtimer = v:null
 let s:laststdin = ["noredir"]
 let s:laststdout = ["noredir"]
-let s:laststdout = ["noredir"]
+let s:laststderr = ["noredir"]
 let s:lastexename = ""
 " }}} End init execute arguments
 
@@ -122,16 +124,21 @@ function! VimOI#OIRedirect(...)
     endif
 
     " Get the executable name
-    if a:0 == 0 || empty(a:1) || a:1[0] == ' ' || a:1 == '%'
+    function! s:GetExeName()
+        if g:VimOI_CompileSys == 'mscl'
+            return expand('%:r') . '.exe'
+        else
+            return './a.out'
+        endif
+    endfunction
+    if a:0 == 0 || empty(a:1) || a:1[0] == ' ' || a:1 == '!'
         if !empty(s:lastexename)
             let exename = s:lastexename
-        elseif g:VimOI_CompileSys == 'mscl'
-            let exename = expand('%:r') . '.exe'
         else
-            let exename = './a.out'
+            let exename = s:GetExeName()
         endif
-    elseif a:1 == '-'
-        let exename = s:lastexename
+    elseif a:1 == '%'
+        let exename = s:GetExeName()
     else
         let exename = a:1
     endif
@@ -180,10 +187,10 @@ function! VimOI#OIRedirect(...)
     " {{{ Function s:GetRedirBuf
     " {{{ Function s:CreateBuf
     function! s:CreateBuf(type) closure
-        " If dont reuse tab, it's no need to save it
+        " If dont reuse tab, clear save info to create a new tab
         if g:VimOI_ReuseRedirTab == 0
             let s:newtabid = -1
-            " Switch to redir tab
+            " Reuse tab, switch to redir tab
         elseif g:VimOI_HoldRedirTab == 1
             tabfirst
             if s:newtabid > 1
@@ -245,54 +252,22 @@ function! VimOI#OIRedirect(...)
                 \ "exit_cb" : funcref("s:OnProgEnd"),}
 
     " {{{ Get redirect destinations
-    " Stdin
-    if a:0 < 2
-        let arg = "!"
-    else
-        let arg = a:2
-    endif
-    let opt = s:ProcRedirOpt(arg, "in")
-    if opt[0] == "buf"
-        let joboption.in_io = "buffer"
-        let joboption.in_buf = s:GetRedirBuf(opt[1], "in")
-    elseif opt[0] == "null"
-        let joboption.in_io = "null"
-    elseif opt[0] == "file"
-        let joboption.in_io = "file"
-        let joboption.in_name = opt[1]
-    endif
-    " Stdout
-    if a:0 < 3
-        let arg = "!"
-    else
-        let arg = a:3
-    endif
-    let opt = s:ProcRedirOpt(arg, "out")
-    if opt[0] == "buf"
-        let joboptioin.out_io = "buffer"
-        let joboption.out_buf = s:GetRedirBuf(opt[1], "out")
-    elseif opt[0] == "null"
-        let joboption.out_io = "null"
-    elseif opt[0] == "file"
-        let joboption.out_io = "file"
-        let joboption.out_name = opt[1]
-    endif
-    " Stderr
-    if a:0 >= 4
-        let arg = "!"
-    else
-        let arg = a:4
-    endif
-    let opt = s:ProcRedirOpt(arg, "err")
-    if opt[0] == "buf"
-        let joboptioin.err_io = "buffer"
-        let joboption.err_buf = s:GetRedirBuf(opt[1], "err")
-    elseif opt[0] == "null"
-        let joboption.err_io = "null"
-    elseif opt[0] == "file"
-        let joboption.err_io = "file"
-        let joboption.err_name = opt[1]
-    endif
+    for [index, name] in [[2, "in"], [3, "out"], [4, "err"]]
+        if a:0 < index
+            execute "let opt = s:laststd" . name
+        else
+            let opt = s:ProcRedirOpt(eval("a:".index), name)
+        endif
+        if opt[0] == "buf"
+            execute "let joboption.".name."_io = \"buffer\""
+            execute "let joboption.".name."_buf = s:GetRedirBuf(opt[1], name)"
+        elseif opt[0] == "null"
+            execute "let joboption.".name."_io = \"null\""
+        elseif opt[0] == "file"
+            execute "let joboption.".name."_io = \"file\""
+            execute "let joboption.".name."_name = opt[1]"
+        endif
+    endfor
     " }}} Done get the redirect distinations
 
     " {{{ Run program
