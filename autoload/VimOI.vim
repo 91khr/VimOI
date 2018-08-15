@@ -25,6 +25,8 @@ endif
 if !exists("g:VimOI_PrecompileCmd")
     if g:VimOI_CompileSys == 'mscl'
         let g:VimOI_PrecompileCmd = '"C:\\Program Files (x86)\\VS2017\\VC\\Auxiliary\\Build\\vcvars64.bat" >nul'
+    else
+        let g:VimOI_PrecompileCmd = ''
     endif
 endif
 
@@ -287,7 +289,6 @@ function! VimOI#OIRedirect(...)
         endif
     endif
     " Start running
-    echo JobStart exename joboption
     let s:testprog = JobStart(exename, joboption)
     " Start timer
     if JobStart == function('job_start')
