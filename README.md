@@ -20,6 +20,7 @@
     1. [g:VimOI_HoldRedirTab](#gvimoi_holdredirtab)
     1. [g:VimOI_TimeLimit](#gvimoi_timelimit)
     1. [g:VimOI_AutoCompile](#gvimoi_autocompile)
+    1. [g:VimOI_PassFilename](#gvimoi_passfilename)
 1. [TODO](#todo)
 
 ## Install
@@ -100,14 +101,16 @@ OIRedirect
 
 编译一个C++源文件并生成可执行文件, **不会**删除任何中间文件.
 
-第一个参数将被作为文件名传递给编译器,
-其余的参数将被作为编译器的额外参数传递给编译器.
-如果没有提供参数, 将编译当前文件.
+编译步骤如下:
+1. 如果提供了参数, 第一个参数将被作为要编译的源文件名对待, 否则, 编译当前文件.
+   如果[g:VimOI_PassFilename](#gvimoi_passfilename)为0, 文件名将不会传递给编译器.
+1. 在同一条命令中运行[正式编译前要执行的命令](#gvimoi_precompilecmd)和编译器,
+   中间以`' && '`分隔.
 
 Example:
 
 ```vim
-call VimOI#CppCompile(['%', '-Wall', '-Wextra'])
+call VimOI#CppCompile('%', '-Wall', '-Wextra')
 ```
 
 ### VimOI#OIRedirect函数
@@ -226,6 +229,12 @@ call VimOI#CppCompile(['%', '-Wall', '-Wextra'])
 **注意:** 现在还不支持检测源代码是否更改, 所以不建议设置.
 
 默认值: 0
+
+### g:VimOI_PassFilename
+
+指定VimOI是否要在编译时将文件名传递给编译器.
+
+默认值: 1
 
 ## TODO
 

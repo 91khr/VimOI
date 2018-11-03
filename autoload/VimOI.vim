@@ -38,24 +38,30 @@ let s:CompileArgsList = {
 if !exists("g:VimOI_CompileArgs")
     let g:VimOI_CompileArgs = s:CompileArgsList[g:VimOI_CompileSys]
 endif
-" Preprocess compile argument list
-let s:CompileArgStr = ''
-for i in g:VimOI_CompileArgs
-    let s:CompileArgStr = s:CompileArgStr . ' ' . i
-endfor
 
+if !exists("g:VimOI_PassFilename")
+    let g:VimOI_PassFilename = 1
+endif
 " }}} End compile arguments
 
 " {{{ Function VimOI#CppCompile
 function! VimOI#CppCompile(...)
     " Process filename
-    if a:0 >= 1
-        let filename = a:1
+    if g:VimOI_PassFilename
+        if a:0 >= 1
+            let filename = a:1
+        else
+            let filename = '%'
+        endif
     else
-        let filename = '%'
+        let filename = ''
     endif
-    " Process arguments
+    " Process arguments in option
     let args = ' '
+    for i in g:VimOI_CompileArgs
+        let args = args . i . ' '
+    endfor
+    " Process arguments in parameter
     for i in a:000[1:]
         let args = args . i . ' '
     endfor
@@ -64,7 +70,7 @@ function! VimOI#CppCompile(...)
     if !empty(g:VimOI_PrecompileCmd)
         let precompile = g:VimOI_PrecompileCmd . ' && '
     endif
-    execute "AsyncRun " . precompile . g:VimOI_CompileProg . s:CompileArgStr . args . filename
+    execute "AsyncRun " . precompile . g:VimOI_CompileProg . args . filename
 endfunction
 " }}} End function VimOI#CppCompile
 
@@ -216,6 +222,7 @@ function! VimOI#OIRedirect(...)
                 execute "split [" . exename . " Output]"
             elseif a:type == "err"
                 execute "vsplit [" . exename . " Log]"
+            endif
         endif
         " Set buffer attributes
         set buftype=nofile
