@@ -24,7 +24,8 @@ endif
 
 if !exists("g:VimOI_PrecompileCmd")
     if g:VimOI_CompileSys == 'mscl'
-        let g:VimOI_PrecompileCmd = '"C:\\Program Files (x86)\\VS2017\\VC\\Auxiliary\\Build\\vcvars64.bat" >nul'
+        let g:VimOI_PrecompileCmd = '"C:\\Program Files (x86)\\Microsoft Visual Studio'
+                    \ . '\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >nul'
     else
         let g:VimOI_PrecompileCmd = ''
     endif
@@ -42,14 +43,17 @@ endif
 if !exists("g:VimOI_PassFilename")
     let g:VimOI_PassFilename = 1
 endif
+if !exists("g:VimOI_CopenOptions")
+    let g:VimOI_CopenOptions = ""
+endif
 " }}} End compile arguments
 
 " {{{ Function VimOI#CppCompile
-function! VimOI#CppCompile(...)
+function! s:GetCompileCmd(arglist)
     " Process filename
     if g:VimOI_PassFilename
-        if a:0 >= 1
-            let filename = a:1
+        if len(a:arglist) >= 1
+            let filename = a:arglist[0]
         else
             let filename = '%'
         endif
@@ -62,7 +66,7 @@ function! VimOI#CppCompile(...)
         let args = args . i . ' '
     endfor
     " Process arguments in parameter
-    for i in a:000[1:]
+    for i in a:arglist[1:]
         let args = args . i . ' '
     endfor
     " Execute compile command by systems
@@ -70,7 +74,11 @@ function! VimOI#CppCompile(...)
     if !empty(g:VimOI_PrecompileCmd)
         let precompile = g:VimOI_PrecompileCmd . ' && '
     endif
-    execute "AsyncRun " . precompile . g:VimOI_CompileProg . args . filename
+    return precompile . g:VimOI_CompileProg . args . filename
+endfunction
+
+function! VimOI#CppCompile(...)
+    execute "AsyncRun " . s:GetCompileCmd(a:000)
 endfunction
 " }}} End function VimOI#CppCompile
 
@@ -103,6 +111,8 @@ let s:laststdin = ["noredir"]
 let s:laststdout = ["noredir"]
 let s:laststderr = ["noredir"]
 let s:lastexename = ""
+let s:joboption = {}
+let s:redirect_running = 0
 " }}} End init execute arguments
 
 " {{{ Function VimOI#OIRedirect
@@ -112,6 +122,7 @@ function! s:OnProgEnd(...)
     if s:progtimer != v:null
         call timer_stop(s:progtimer)
     endif
+    let s:redirect_running = 0
 endfunction
 
 function! s:KillProg(...)
@@ -121,20 +132,46 @@ function! s:KillProg(...)
 endfunction
 " }}} End function s:KillProg
 
-function! VimOI#OIRedirect(...)
-    " {{{ Compile and get the executable name
-    if g:VimOI_AutoCompile == 1
-        if a:0 >= 1
-            execute "CppCompile " . a:1
-        else
-            CppCompile
+" {{{ function s:RunProgram
+function! s:RunProgram()
+    " Set the starter
+    if !get(s:joboption, 'in_io') || s:joboption.in_io == 'pipe'
+                \|| !get(s:joboption, 'out_io') || s:joboption.out_io == 'pipe'
+                \|| !get(s:joboption, 'err_io') || s:joboption.err_io == 'pipe'
+        let JobStart = function('term_start')
+    else
+        let JobStart = function('job_start')
+    endif
+    " If have to open a terminal, rename it
+    if JobStart == function('term_start')
+        let s:joboption.term_name = "[" . s:lastexename . "]"
+        if has("win32")
+            let s:joboption.eof_chars = "\032"  | " Ctrl-Z
         endif
     endif
+    " Start running
+    let s:testprog = JobStart(s:lastexename, s:joboption)
+    " Start timer
+    if JobStart == function('job_start')
+        let s:progtimer = timer_start(g:VimOI_TimeLimit, funcref("s:KillProg"))
+    endif
+endfunction
+" }}} End function s:RunProgram
 
-    " Get the executable name
+function! VimOI#OIRedirect(...)
+    if s:redirect_running
+        echohl Error
+        echom "Already had program running!"
+        echohl Normal
+        return
+    else
+        let s:redirect_running = 1
+    endif
+
+    " {{{ Get executable name
     function! s:GetExeName()
         if g:VimOI_CompileSys == 'mscl'
-            return expand('%:r') . '.exe'
+            return expand('%:t:r') . '.exe'
         else
             return './a.out'
         endif
@@ -151,7 +188,8 @@ function! VimOI#OIRedirect(...)
         let exename = a:1
     endif
     let s:lastexename = exename
-    " }}} Done get the executable name
+
+    " }}} End getting executable name
 
     " {{{ Function s:ProcRedirOpt
     " Returns a list [RedirType, RedirPos]
@@ -210,18 +248,18 @@ function! VimOI#OIRedirect(...)
             if a:type == "in"
                 tabnew [Input]
             elseif a:type == "out"
-                execute "tabnew [" . exename . " Output]"
+                execute "tabnew [" . a:exename . " Output]"
             elseif a:type == "err"
-                execute "tabnew [" . exename . " Log]"
+                execute "tabnew [" . a:exename . " Log]"
             endif
             let s:newtabid = tabpagenr()
         else  | " Reuse current tab
             if a:type == "in"
                 split [Input]
             elseif a:type == "out"
-                execute "split [" . exename . " Output]"
+                execute "split [" . a:exename . " Output]"
             elseif a:type == "err"
-                execute "vsplit [" . exename . " Log]"
+                execute "vsplit [" . a:exename . " Log]"
             endif
         endif
         " Set buffer attributes
@@ -255,7 +293,7 @@ function! VimOI#OIRedirect(...)
     endfunction
     " }}} End function s:CreateRedirBuf
 
-    let joboption = {
+    let s:joboption = {
                 \ "out_modifiable" : 0,
                 \ "err_modifiable" : 0,
                 \ "exit_cb" : funcref("s:OnProgEnd"),}
@@ -268,40 +306,35 @@ function! VimOI#OIRedirect(...)
             let opt = s:ProcRedirOpt(eval("a:".index), name)
         endif
         if opt[0] == "buf"
-            execute "let joboption.".name."_io = \"buffer\""
-            execute "let joboption.".name."_buf = s:GetRedirBuf(opt[1], name)"
+            execute "let s:joboption.".name."_io = \"buffer\""
+            execute "let s:joboption.".name."_buf = s:GetRedirBuf(opt[1], name)"
         elseif opt[0] == "null"
-            execute "let joboption.".name."_io = \"null\""
+            execute "let s:joboption.".name."_io = \"null\""
         elseif opt[0] == "file"
-            execute "let joboption.".name."_io = \"file\""
-            execute "let joboption.".name."_name = opt[1]"
+            execute "let s:joboption.".name."_io = \"file\""
+            execute "let s:joboption.".name."_name = opt[1]"
         endif
     endfor
     " }}} Done get the redirect distinations
 
-    " {{{ Run program
-    " Set the starter
-    if !get(joboption, 'in_io') || joboption.in_io == 'pipe'
-                \|| !get(joboption, 'out_io') || joboption.out_io == 'pipe'
-                \|| !get(joboption, 'err_io') || joboption.err_io == 'pipe'
-        let JobStart = function('term_start')
-    else
-        let JobStart = function('job_start')
-    endif
-    " If have to open a terminal, rename it
-    if JobStart == function('term_start')
-        let joboption.term_name = "[" . exename . "]"
-        if has("win32")
-            let joboption.eof_chars = "\032"  | " Ctrl-Z
+    " {{{ Compile and run
+    let exetime = getftime(exename)
+    echom exetime getftime(expand('%'))
+    " Run after compile
+    if g:VimOI_AutoCompile == 1 && exetime < getftime(expand('%'))
+        if a:0 >= 1
+            let compilecmd = s:GetCompileCmd([a:1])
+        else
+            let compilecmd = s:GetCompileCmd([expand('%')])
         endif
+        echo g:VimOI_CopenOptions . "copen"
+        execute g:VimOI_CopenOptions . "copen"
+        let hookcmd = "call\\ " . string(function("s:RunProgram")) . "() "
+        execute "AsyncRun -save=2 -post=" . hookcmd . compilecmd
+    else  | " Directly run
+        call s:RunProgram()
     endif
-    " Start running
-    let s:testprog = JobStart(exename, joboption)
-    " Start timer
-    if JobStart == function('job_start')
-        let s:progtimer = timer_start(g:VimOI_TimeLimit, funcref("s:KillProg"))
-    endif
-    " }}} Done run program
+    " }}} End compile and run
 endfunction
 " }}} End function VimOI#OIRedirect
 

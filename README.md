@@ -21,6 +21,7 @@
     1. [g:VimOI_TimeLimit](#gvimoi_timelimit)
     1. [g:VimOI_AutoCompile](#gvimoi_autocompile)
     1. [g:VimOI_PassFilename](#gvimoi_passfilename)
+    1. [g:VimOI_CopenOptions](#gvimoi_copenoptions)
 1. [TODO](#todo)
 
 ## Install
@@ -226,15 +227,24 @@ call VimOI#CppCompile('%', '-Wall', '-Wextra')
 
 指定VimOI是否要在运行程序之前自动保存和编译.
 
-**注意:** 现在还不支持检测源代码是否更改, 所以不建议设置.
+如果当前文件的修改时间大于要运行的程序的修改时间, 则VimOI将会自动编译.
 
-默认值: 0
+默认值: 1
 
 ### g:VimOI_PassFilename
 
 指定VimOI是否要在编译时将文件名传递给编译器.
 
 默认值: 1
+
+### g:VimOI_CopenOptions
+
+指定VimOI在自动编译时如何打开QuickFix窗口.(手动编译时不会自动打开QuickFix窗口)
+
+当前版本实现方式为`execute g:VimOI_CopenOptions . "copen"`,
+所以如果不想自动打开QuickFix窗口, 将它设置为`'"'`.
+
+默认值: ""
 
 ## TODO
 
