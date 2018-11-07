@@ -147,6 +147,8 @@ call VimOI#CppCompile('%', '-Wall', '-Wextra')
 **注意:** 作为`stdout`或`stderr`重定向目标的文件或缓冲区中原有的内容将被清空,
 所以如果自己选择缓冲区, 请小心选择一个无用的缓冲区.
 
+**注意:** Windows下无法重定向到文件, 原因见[这个issue](https://github.com/vim/vim/issues/3593).
+
 如果运行过程中出现错误(如文件没有权限等), 结果是未定义的.
 但是可以保证没有提及的文件和缓冲区不会被修改.
 
@@ -229,7 +231,7 @@ call VimOI#CppCompile('%', '-Wall', '-Wextra')
 
 如果当前文件的修改时间大于要运行的程序的修改时间, 则VimOI将会自动编译.
 
-默认值: 1
+默认值: 0
 
 ### g:VimOI_PassFilename
 
@@ -249,5 +251,6 @@ call VimOI#CppCompile('%', '-Wall', '-Wextra')
 ## TODO
 
 - 实现[VimOI#OIRedirect函数](#vimoioiredirect函数)的`$echo`特殊重定向;
-- 优化代码风格;
+- 测试打开重定向buffer的功能;
+- 优化代码风格.
 

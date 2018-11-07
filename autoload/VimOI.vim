@@ -319,7 +319,6 @@ function! VimOI#OIRedirect(...)
 
     " {{{ Compile and run
     let exetime = getftime(exename)
-    echom exetime getftime(expand('%'))
     " Run after compile
     if g:VimOI_AutoCompile == 1 && exetime < getftime(expand('%'))
         if a:0 >= 1
