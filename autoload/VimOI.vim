@@ -55,7 +55,7 @@ function! s:GetCompileCmd(arglist)
         if len(a:arglist) >= 1
             let filename = a:arglist[0]
         else
-            let filename = '%'
+            let filename = expand('%')
         endif
     else
         let filename = ''
@@ -134,6 +134,11 @@ endfunction
 
 " {{{ function s:RunProgram
 function! s:RunProgram()
+    " Check if there are any errors in program
+    if g:asyncrun_code != 0
+        execute g:VimOI_CopenOptions . "copen"
+        return
+    endif
     " Set the starter
     if !get(s:joboption, 'in_io') || s:joboption.in_io == 'pipe'
                 \|| !get(s:joboption, 'out_io') || s:joboption.out_io == 'pipe'
@@ -320,20 +325,34 @@ function! VimOI#OIRedirect(...)
     " {{{ Compile and run
     let exetime = getftime(exename)
     " Run after compile
-    if g:VimOI_AutoCompile == 1 && exetime < getftime(expand('%'))
-        if a:0 >= 1
-            let compilecmd = s:GetCompileCmd([a:1])
-        else
-            let compilecmd = s:GetCompileCmd([expand('%')])
+    try
+        if g:VimOI_AutoCompile == 1 && exetime < getftime(expand('%'))
+            if a:0 >= 1
+                let compilecmd = s:GetCompileCmd([a:1])
+            else
+                let compilecmd = s:GetCompileCmd([expand('%')])
+            endif
+            let hookcmd = "call\\ " . string(function("s:RunProgram")) . "() "
+            execute "AsyncRun -save=2 -post=" . hookcmd . compilecmd
+        else  | " Directly run
+            call s:RunProgram()
         endif
-        echo g:VimOI_CopenOptions . "copen"
-        execute g:VimOI_CopenOptions . "copen"
-        let hookcmd = "call\\ " . string(function("s:RunProgram")) . "() "
-        execute "AsyncRun -save=2 -post=" . hookcmd . compilecmd
-    else  | " Directly run
-        call s:RunProgram()
-    endif
+    catch /.*Process.*/
+        echohl Error
+        echom "Failed to redirect, any errors? (You may try again using :OIRedirect %)"
+        echohl None
+        let s:redirect_running = 0
+    endtry
     " }}} End compile and run
 endfunction
 " }}} End function VimOI#OIRedirect
+
+" {{{ Function VimOI#OIStop
+function! VimOI#OIStop()
+    if s:testprog != v:null
+        call s:KillProg()
+    endif
+    let s:redirect_running = 0
+endfunction
+" }}} End function VimOI#OIStop
 

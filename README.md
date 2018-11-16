@@ -7,9 +7,11 @@
 1. [Commands](#commands)
     1. [CppCompile命令](#cppcompile命令)
     1. [OIRedirect命令](#oiredirect命令)
+    1. [OIStop命令](#oistop命令)
 1. [Functions](#functions)
     1. [VimOI#CppCompile函数](#vimoicppcompile函数)
     1. [VimOI#OIRedirect函数](#vimoioiredirect函数)
+    1. [VimOI#OIStop函数](#vimoioistop函数)
 1. [Options](#options)
     1. [g:VimOI_CompileSys](#gvimoi_compilesys)
     1. [g:VimOI_CompileProg](#gvimoi_compileprog)
@@ -96,6 +98,12 @@ OIRedirect
 
 这将运行当前文件对应的可执行文件, 并打开一个vim终端窗口接受输入和输出.
 
+### OIStop命令
+
+调用[VimOI#OIStop函数](#vimoioistop函数), 停止当前正在重定向的进程.
+
+由于当前版本不支持同时运行两个可执行文件, 所以在运行出错时也必须调用这个命令再重新运行.
+
 ## Functions
 
 ### VimOI#CppCompile函数
@@ -149,10 +157,20 @@ call VimOI#CppCompile('%', '-Wall', '-Wextra')
 
 **注意:** Windows下无法重定向到文件, 原因见[这个issue](https://github.com/vim/vim/issues/3593).
 
+如果设置了[自动编译](#gvimoi_autocompile), 将会在出现编译错误时显示QuickFix窗口,
+显示的方式由[g:VimOI_CopenOptions选项](#gvimoi_copenoptions)指定.
+编译的时间可能有点长, 如果你使用的是[vim-airline](https://github.com/vim-airline/vim-airline),
+可以参照[这里](https://github.com/skywind3000/asyncrun.vim/wiki/Cooperate-with-famous-plugins#vim-airline),
+在状态栏上显示编译进程.
+
 如果运行过程中出现错误(如文件没有权限等), 结果是未定义的.
 但是可以保证没有提及的文件和缓冲区不会被修改.
 
 如果运行的时间超过了[限制](#gvimoi_timelimit), VimOI会强行停止这个程序.
+
+### VimOI#OIStop函数
+
+强行停止当前由[OIRedirect函数](#vimoioiredirect函数)运行的可执行文件.
 
 ## Options
 
@@ -247,6 +265,8 @@ call VimOI#CppCompile('%', '-Wall', '-Wextra')
 所以如果不想自动打开QuickFix窗口, 将它设置为`'"'`.
 
 默认值: ""
+
+## Tips
 
 ## TODO
 
