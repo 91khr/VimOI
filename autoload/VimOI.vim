@@ -135,7 +135,7 @@ endfunction
 " {{{ function s:RunProgram
 function! s:RunProgram()
     " Check if there are any errors in program
-    if g:asyncrun_code != 0
+    if g:VimOI_AutoCompile && g:asyncrun_code != 0
         execute g:VimOI_CopenOptions . "copen"
         return
     endif
@@ -242,14 +242,14 @@ function! VimOI#OIRedirect(...)
         if g:VimOI_ReuseRedirTab == 0
             let s:newtabid = -1
             " Reuse tab, switch to redir tab
-        elseif g:VimOI_HoldRedirTab == 1
+        elseif g:VimOI_HoldRedirTab
             tabfirst
             if s:newtabid > 1
                 execute "normal " . s:newtabid . "gt"
             endif
         endif
         " Create new tab
-        if s:newtabid == -1 && g:VimOI_HoldRedirTab == 1
+        if s:newtabid == -1 && g:VimOI_HoldRedirTab
             if a:type == "in"
                 tabnew [Input]
             elseif a:type == "out"
@@ -298,12 +298,11 @@ function! VimOI#OIRedirect(...)
     endfunction
     " }}} End function s:CreateRedirBuf
 
+    " {{{ Get redirect destinations
     let s:joboption = {
                 \ "out_modifiable" : 0,
                 \ "err_modifiable" : 0,
                 \ "exit_cb" : funcref("s:OnProgEnd"),}
-
-    " {{{ Get redirect destinations
     for [index, name] in [[2, "in"], [3, "out"], [4, "err"]]
         if a:0 < index
             execute "let opt = s:laststd" . name
@@ -326,7 +325,7 @@ function! VimOI#OIRedirect(...)
     let exetime = getftime(exename)
     " Run after compile
     try
-        if g:VimOI_AutoCompile == 1 && exetime < getftime(expand('%'))
+        if g:VimOI_AutoCompile && (exetime < getftime(expand('%')) || exetime == -1)
             if a:0 >= 1
                 let compilecmd = s:GetCompileCmd([a:1])
             else
@@ -337,9 +336,9 @@ function! VimOI#OIRedirect(...)
         else  | " Directly run
             call s:RunProgram()
         endif
-    catch /.*Process.*/
+    catch /.*/
         echohl Error
-        echom "Failed to redirect, any errors? (You may try again using :OIRedirect %)"
+        echom "Failed to redirect: " v:exception "You can retry with :OIRedirect % or report this error"
         echohl None
         let s:redirect_running = 0
     endtry
