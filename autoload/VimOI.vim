@@ -78,7 +78,19 @@ function! s:GetCompileCmd(arglist)
 endfunction
 
 function! VimOI#CppCompile(...)
-    execute "AsyncRun " . s:GetCompileCmd(a:000)
+    function! s:PostCompile()
+        " Open quickfix if not succeed
+        if g:asyncrun_code != 0
+            execute g:VimOI_CopenOptions . "copen"
+        else  | " Close quickfix and output message
+            cclose
+            let l:warnings = len(filter(getqflist(), { idx, val -> val['valid'] == 1 }))
+            echom "Compile succeed " . (l:warnings ? "with " . l:warnings . " warning(s)." : ".")
+        endif
+    endfunction
+    write  | " Save and run compile command
+    execute "AsyncRun -post=call\\ " . string(function("s:PostCompile")) . "() "
+                \ . s:GetCompileCmd(a:000)
 endfunction
 " }}} End function VimOI#CppCompile
 
@@ -164,6 +176,7 @@ endfunction
 " }}} End function s:RunProgram
 
 function! VimOI#OIRedirect(...)
+    " {{{ Check if is running
     if s:redirect_running
         echohl Error
         echom "Already had program running!"
@@ -172,6 +185,7 @@ function! VimOI#OIRedirect(...)
     else
         let s:redirect_running = 1
     endif
+    " }}}
 
     " {{{ Get executable name
     function! s:GetExeName()
@@ -334,6 +348,7 @@ function! VimOI#OIRedirect(...)
             let hookcmd = "call\\ " . string(function("s:RunProgram")) . "() "
             execute "AsyncRun -save=2 -post=" . hookcmd . compilecmd
         else  | " Directly run
+            let s:asnycrun_code = 0
             call s:RunProgram()
         endif
     catch /.*/
